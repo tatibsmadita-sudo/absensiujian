@@ -1,5 +1,5 @@
 const BASE_URL = "https://script.google.com/macros/s/AKfycbywVVBSAw6o66oAT_IQo7w6UJt0ap4CPSGhAx72KKeoMp2jupJKOMkf40KnRwiDQYWg/exec";
-
+const SHEET_ID = "10QM52rGmrfTDVxuJ6UHL5GA0RxrWXn7Ra1fvmMA9bXk";
 // GET data siswa
 export async function getSiswa() {
   const res = await fetch(`${BASE_URL}?action=getSiswa`);

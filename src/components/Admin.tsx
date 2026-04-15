@@ -218,7 +218,7 @@ export default function Admin({ user }: { user: any }) {
                 </Button>
                 <Dialog open={isSiswaDialogOpen} onOpenChange={setIsSiswaDialogOpen}>
                   <DialogTrigger
-                    nativeButton={false}
+                    nativeButton={true}
                     render={
                       <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                         <Plus className="w-4 h-4 mr-2" />
@@ -323,7 +323,7 @@ export default function Admin({ user }: { user: any }) {
               </div>
               <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
                 <DialogTrigger
-                  nativeButton={false}
+                  nativeButton={true}
                   render={
                     <Button size="sm" className="bg-slate-800 hover:bg-slate-900 text-white">
                       <UserPlus className="w-4 h-4 mr-2" />

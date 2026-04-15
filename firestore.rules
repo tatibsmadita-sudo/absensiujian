@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: siswa
+    // Fields: noUrut (number), nama (string), kelas (string), nomorUjian (string), ruang (string)
+    //
+    // Collection: presensi
+    // Fields: siswaId (string), nama (string), status (string), tanggal (string), ruang (string), timestamp (string)
+    //
+    // Collection: users
+    // Fields: username (string), namaGuru (string), role (string)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         request.auth.token.email == "tatibsmadita@gmail.com");
+    }
+
+    function isGuru() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'guru' || isAdmin());
+    }
+
+    // Validation Functions
+    function isValidSiswa(data) {
+      return data.nama is string && data.nama.size() > 0 && data.nama.size() < 100 &&
+             data.kelas is string && data.kelas.size() > 0 &&
+             data.ruang is string && data.ruang.size() > 0;
+    }
+
+    function isValidPresensi(data) {
+      return data.siswaId is string &&
+             data.status in ['Hadir', 'Sakit', 'Izin', 'Alfa'] &&
+             data.tanggal.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.ruang is string;
+    }
+
+    // Rules
+    match /siswa/{siswaId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && isValidSiswa(request.resource.data);
+    }
+
+    match /presensi/{presensiId} {
+      allow read: if isAuthenticated();
+      allow write: if isGuru() && isValidPresensi(request.resource.data);
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+  }
+}

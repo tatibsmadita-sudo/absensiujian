@@ -1,0 +1,7 @@
+{
+  "apiKey": "mock-key",
+  "authDomain": "mock-auth",
+  "projectId": "mock-project",
+  "appId": "mock-app",
+  "firestoreDatabaseId": "(default)"
+}

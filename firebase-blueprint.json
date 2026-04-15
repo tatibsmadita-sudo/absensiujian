@@ -1,0 +1,56 @@
+{
+  "entities": {
+    "Siswa": {
+      "title": "Siswa",
+      "description": "Data Siswa",
+      "type": "object",
+      "properties": {
+        "noUrut": { "type": "number", "description": "Nomor Urut Siswa" },
+        "nama": { "type": "string", "description": "Nama Lengkap Siswa" },
+        "kelas": { "type": "string", "description": "Kelas Siswa" },
+        "nomorUjian": { "type": "string", "description": "Nomor Ujian Siswa" },
+        "ruang": { "type": "string", "description": "Ruang Ujian/Kelas" }
+      },
+      "required": ["noUrut", "nama", "kelas", "nomorUjian", "ruang"]
+    },
+    "Presensi": {
+      "title": "Presensi",
+      "description": "Data Kehadiran Siswa",
+      "type": "object",
+      "properties": {
+        "siswaId": { "type": "string", "description": "ID Siswa" },
+        "nama": { "type": "string", "description": "Nama Siswa (Denormalized)" },
+        "status": { "type": "string", "enum": ["Hadir", "Sakit", "Izin", "Alfa"], "description": "Status Kehadiran" },
+        "tanggal": { "type": "string", "format": "date", "description": "Tanggal Presensi (YYYY-MM-DD)" },
+        "ruang": { "type": "string", "description": "Ruang saat presensi" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Waktu submit" }
+      },
+      "required": ["siswaId", "status", "tanggal", "ruang", "timestamp"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Data Guru/Admin",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string", "description": "Username Login" },
+        "namaGuru": { "type": "string", "description": "Nama Lengkap Guru" },
+        "role": { "type": "string", "enum": ["admin", "guru"], "description": "Role User" }
+      },
+      "required": ["username", "namaGuru", "role"]
+    }
+  },
+  "firestore": {
+    "/siswa/{siswaId}": {
+      "schema": "Siswa",
+      "description": "Koleksi data siswa"
+    },
+    "/presensi/{presensiId}": {
+      "schema": "Presensi",
+      "description": "Koleksi data presensi harian"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Koleksi data user (guru/admin)"
+    }
+  }
+}

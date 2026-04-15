@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   UserPlus, 
@@ -10,7 +10,8 @@ import {
   Search,
   FileDown,
   Upload,
-  ShieldAlert
+  ShieldAlert,
+  Loader2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,13 +30,8 @@ import {
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-
-// Mock Data
-const MOCK_SISWA = [
-  { id: '1', noUrut: 1, nama: 'Ahmad Fauzi', kelas: 'XII IPA 1', nomorUjian: '01-001-001', ruang: 'Ruang 01' },
-  { id: '2', noUrut: 2, nama: 'Budi Santoso', kelas: 'XII IPA 1', nomorUjian: '01-001-002', ruang: 'Ruang 01' },
-  { id: '3', noUrut: 3, nama: 'Citra Lestari', kelas: 'XII IPA 1', nomorUjian: '01-001-003', ruang: 'Ruang 01' },
-];
+import { getSiswa, resetData } from '@/src/services/api';
+import { Siswa } from '@/src/types';
 
 const MOCK_USERS = [
   { id: '1', username: 'Admin', namaGuru: 'Administrator', role: 'admin' },
@@ -43,7 +39,9 @@ const MOCK_USERS = [
 ];
 
 export default function Admin({ user }: { user: any }) {
-  const [siswa, setSiswa] = useState(MOCK_SISWA);
+  const [siswa, setSiswa] = useState<Siswa[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [resetting, setResetting] = useState(false);
   const [users, setUsers] = useState(MOCK_USERS);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -52,6 +50,39 @@ export default function Admin({ user }: { user: any }) {
   const [newUser, setNewUser] = useState({ namaGuru: '', username: '', pass: '', role: 'guru' });
   const [isSiswaDialogOpen, setIsSiswaDialogOpen] = useState(false);
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
+
+  useEffect(() => {
+    fetchSiswa();
+  }, []);
+
+  const fetchSiswa = async () => {
+    try {
+      setLoading(true);
+      const data = await getSiswa();
+      setSiswa(data);
+    } catch (error) {
+      console.error('Error fetching siswa:', error);
+      toast.error('Gagal mengambil data siswa');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetData = async () => {
+    if (window.confirm('PERINGATAN: Ini akan menghapus SELURUH data siswa dan presensi di server. Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin?')) {
+      try {
+        setResetting(true);
+        await resetData();
+        setSiswa([]);
+        toast.success('Seluruh data berhasil direset');
+      } catch (error) {
+        console.error('Error resetting data:', error);
+        toast.error('Gagal mereset data');
+      } finally {
+        setResetting(false);
+      }
+    }
+  };
 
   const handleDeleteSiswa = (id: string) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus data siswa ini?')) {
@@ -66,10 +97,17 @@ export default function Admin({ user }: { user: any }) {
       return;
     }
     const id = Math.random().toString(36).substr(2, 9);
-    setSiswa([...siswa, { ...newSiswa, id, noUrut: parseInt(newSiswa.noUrut) || siswa.length + 1, nomorUjian: newSiswa.noUjian }]);
+    setSiswa([...siswa, { 
+      id, 
+      noUrut: parseInt(newSiswa.noUrut) || siswa.length + 1, 
+      nama: newSiswa.nama,
+      kelas: newSiswa.kelas,
+      nomorUjian: newSiswa.noUjian,
+      ruang: newSiswa.ruang
+    }]);
     setNewSiswa({ noUrut: '', nama: '', kelas: '', noUjian: '', ruang: '' });
     setIsSiswaDialogOpen(false);
-    toast.success('Siswa berhasil ditambahkan');
+    toast.success('Siswa berhasil ditambahkan (Lokal)');
   };
 
   const handleTambahUser = () => {
@@ -92,7 +130,7 @@ export default function Admin({ user }: { user: any }) {
     reader.onload = (e) => {
       const text = e.target?.result as string;
       const lines = text.split('\n');
-      const newSiswaList: any[] = [];
+      const newSiswaList: Siswa[] = [];
       
       // Skip header
       for (let i = 1; i < lines.length; i++) {
@@ -136,6 +174,15 @@ export default function Admin({ user }: { user: any }) {
     toast.success('Template CSV berhasil diunduh');
   };
 
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+        <p className="text-slate-500 font-medium">Memuat data admin...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -159,15 +206,26 @@ export default function Admin({ user }: { user: any }) {
                 <CardTitle>Daftar Siswa</CardTitle>
                 <CardDescription>Total {siswa.length} siswa terdaftar.</CardDescription>
               </div>
-              <Dialog open={isSiswaDialogOpen} onOpenChange={setIsSiswaDialogOpen}>
-                <DialogTrigger
-                  render={
-                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Tambah Siswa
-                    </Button>
-                  }
-                />
+              <div className="flex gap-2">
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={handleResetData}
+                  disabled={resetting}
+                >
+                  {resetting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                  Reset Data
+                </Button>
+                <Dialog open={isSiswaDialogOpen} onOpenChange={setIsSiswaDialogOpen}>
+                  <DialogTrigger
+                    nativeButton={false}
+                    render={
+                      <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Tambah Siswa
+                      </Button>
+                    }
+                  />
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Tambah Siswa Baru</DialogTitle>
@@ -200,7 +258,8 @@ export default function Admin({ user }: { user: any }) {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
-            </CardHeader>
+            </div>
+          </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2 mb-4">
                 <div className="relative flex-1">
@@ -241,7 +300,7 @@ export default function Admin({ user }: { user: any }) {
                             variant="ghost" 
                             size="icon" 
                             className="text-red-600 hover:bg-red-50"
-                            onClick={() => handleDeleteSiswa(s.id)}
+                            onClick={() => handleDeleteSiswa(s.id || '')}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -264,6 +323,7 @@ export default function Admin({ user }: { user: any }) {
               </div>
               <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
                 <DialogTrigger
+                  nativeButton={false}
                   render={
                     <Button size="sm" className="bg-slate-800 hover:bg-slate-900 text-white">
                       <UserPlus className="w-4 h-4 mr-2" />
@@ -361,7 +421,7 @@ export default function Admin({ user }: { user: any }) {
                   id="csv-upload" 
                   onChange={handleImportCSV}
                 />
-                <Button variant="outline" render={<label htmlFor="csv-upload" className="cursor-pointer" />}>
+                <Button variant="outline" nativeButton={false} render={<label htmlFor="csv-upload" className="cursor-pointer" />}>
                   Pilih File CSV
                 </Button>
               </div>

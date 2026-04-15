@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   CheckCircle2, 
@@ -10,7 +10,8 @@ import {
   Eye,
   ChevronDown,
   ChevronUp,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Loader2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -33,8 +34,10 @@ import autoTable from 'jspdf-autotable';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { getSiswa } from '@/src/services/api';
+import { Siswa } from '@/src/types';
 
-// Mock Data for Dashboard
+// Mock Data for Dashboard (until a stats API is provided)
 const MOCK_STATS = [
   { ruang: 'Ruang 01', hadir: 18, sakit: 1, izin: 1, alfa: 0, total: 20 },
   { ruang: 'Ruang 02', hadir: 15, sakit: 2, izin: 0, alfa: 3, total: 20 },
@@ -42,23 +45,6 @@ const MOCK_STATS = [
   { ruang: 'Ruang 04', hadir: 12, sakit: 1, izin: 2, alfa: 5, total: 20 },
   { ruang: 'Ruang 05', hadir: 19, sakit: 0, izin: 1, alfa: 0, total: 20 },
 ];
-
-// Mock Student Attendance Details
-const MOCK_STUDENT_DETAILS: Record<string, any[]> = {
-  'Ruang 01': [
-    { nama: 'Ahmad Fauzi', status: 'Hadir' },
-    { nama: 'Siti Aminah', status: 'Sakit' },
-    { nama: 'Budi Santoso', status: 'Izin' },
-  ],
-  'Ruang 02': [
-    { nama: 'Citra Lestari', status: 'Alfa' },
-    { nama: 'Dedi Kurniawan', status: 'Alfa' },
-    { nama: 'Eka Putri', status: 'Alfa' },
-    { nama: 'Fajar Siddiq', status: 'Sakit' },
-    { nama: 'Gita Gutawa', status: 'Sakit' },
-  ],
-  // ... add more if needed
-};
 
 const COLORS = {
   hadir: '#22c55e',
@@ -68,10 +54,29 @@ const COLORS = {
 };
 
 export default function Dashboard() {
+  const [siswa, setSiswa] = useState<Siswa[]>([]);
+  const [loading, setLoading] = useState(true);
   const [stats] = useState(MOCK_STATS);
   const [expandedRuang, setExpandedRuang] = useState<string | null>(null);
   const [selectedRuangPDF, setSelectedRuangPDF] = useState('Ruang 01');
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+
+  useEffect(() => {
+    fetchSiswa();
+  }, []);
+
+  const fetchSiswa = async () => {
+    try {
+      setLoading(true);
+      const data = await getSiswa();
+      setSiswa(data);
+    } catch (error) {
+      console.error('Error fetching siswa:', error);
+      toast.error('Gagal mengambil data siswa');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const totals = stats.reduce((acc, curr) => ({
     hadir: acc.hadir + curr.hadir,
@@ -82,7 +87,7 @@ export default function Dashboard() {
   }), { hadir: 0, sakit: 0, izin: 0, alfa: 0, total: 0 });
 
   const summaryCards = [
-    { label: 'Total Siswa', value: totals.total, icon: Users, color: 'text-slate-600', bg: 'bg-slate-100' },
+    { label: 'Total Siswa', value: siswa.length || totals.total, icon: Users, color: 'text-slate-600', bg: 'bg-slate-100' },
     { label: 'Hadir', value: totals.hadir, icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100' },
     { label: 'Sakit', value: totals.sakit, icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-100' },
     { label: 'Izin', value: totals.izin, icon: AlertCircle, color: 'text-blue-600', bg: 'bg-blue-100' },
@@ -96,7 +101,7 @@ export default function Dashboard() {
     
     // Header
     doc.setFontSize(18);
-    doc.text('LAPORAN MEL UJIAN', 105, 20, { align: 'center' });
+    doc.text('LAPORAN PRESENSI PESERTA UJIAN', 105, 20, { align: 'center' });
     doc.setFontSize(12);
     doc.text('SMA DIPONEGORO TUMPANG (SMADITA)', 105, 28, { align: 'center' });
     doc.line(20, 32, 190, 32);
@@ -108,8 +113,9 @@ export default function Dashboard() {
     doc.text(`Ringkasan: H(${roomData?.hadir}) S(${roomData?.sakit}) I(${roomData?.izin}) A(${roomData?.alfa})`, 20, 50);
 
     // Table
-    const students = MOCK_STUDENT_DETAILS[ruang] || [];
-    const tableData = students.map((s, i) => [i + 1, s.nama, s.status]);
+    // In a real app, we would fetch attendance records for this room and date
+    const roomStudents = siswa.filter(s => s.ruang === ruang);
+    const tableData = roomStudents.map((s, i) => [i + 1, s.nama, 'Hadir']); // Placeholder status
     
     autoTable(doc, {
       startY: 60,
@@ -128,6 +134,15 @@ export default function Dashboard() {
     doc.save(`Laporan_Presensi_${ruang.replace(' ', '_')}_${selectedDate}.pdf`);
     toast.success(`Laporan PDF ${ruang} tanggal ${formattedDate} berhasil diunduh`);
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+        <p className="text-slate-500 font-medium">Memuat dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -257,29 +272,24 @@ export default function Dashboard() {
                         <TableCell colSpan={2} className="p-4">
                           <div className="space-y-3">
                             {['Sakit', 'Izin', 'Alfa'].map(status => {
-                              const students = (MOCK_STUDENT_DETAILS[row.ruang] || []).filter(s => s.status === status);
-                              if (students.length === 0) return null;
+                              // Filter students from the real student list who are in this room
+                              // Note: we don't have real attendance data here yet, so this is still a bit limited
+                              const roomStudents = siswa.filter(s => s.ruang === row.ruang);
+                              // For now, we'll just show that we have students in this room
+                              if (roomStudents.length === 0) return null;
+                              
                               return (
                                 <div key={status} className="bg-white p-3 rounded-lg border shadow-sm">
                                   <div className="flex items-center gap-2 mb-2">
                                     <div className={`w-2 h-2 rounded-full ${status === 'Sakit' ? 'bg-yellow-500' : status === 'Izin' ? 'bg-blue-500' : 'bg-red-500'}`} />
-                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{status} ({students.length})</span>
+                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{status}</span>
                                   </div>
                                   <div className="flex flex-wrap gap-2">
-                                    {students.map((s, i) => (
-                                      <Badge key={i} variant="secondary" className="bg-slate-100 text-slate-700 font-normal">
-                                        {s.nama}
-                                      </Badge>
-                                    ))}
+                                    <p className="text-xs text-slate-400 italic">Data kehadiran real-time akan muncul di sini.</p>
                                   </div>
                                 </div>
                               );
                             })}
-                            {(!MOCK_STUDENT_DETAILS[row.ruang] || MOCK_STUDENT_DETAILS[row.ruang].filter(s => s.status !== 'Hadir').length === 0) && (
-                              <div className="text-center py-4 text-slate-400 text-sm italic">
-                                Tidak ada siswa Sakit, Izin, atau Alfa di ruangan ini.
-                              </div>
-                            )}
                           </div>
                         </TableCell>
                       </TableRow>

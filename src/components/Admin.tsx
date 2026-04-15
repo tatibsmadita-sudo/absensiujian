@@ -46,6 +46,12 @@ export default function Admin({ user }: { user: any }) {
   const [siswa, setSiswa] = useState(MOCK_SISWA);
   const [users, setUsers] = useState(MOCK_USERS);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Form States
+  const [newSiswa, setNewSiswa] = useState({ noUrut: '', nama: '', kelas: '', noUjian: '', ruang: '' });
+  const [newUser, setNewUser] = useState({ namaGuru: '', username: '', pass: '', role: 'guru' });
+  const [isSiswaDialogOpen, setIsSiswaDialogOpen] = useState(false);
+  const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
 
   const handleDeleteSiswa = (id: string) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus data siswa ini?')) {
@@ -54,8 +60,70 @@ export default function Admin({ user }: { user: any }) {
     }
   };
 
+  const handleTambahSiswa = () => {
+    if (!newSiswa.nama || !newSiswa.noUjian) {
+      toast.error('Nama dan No Ujian wajib diisi');
+      return;
+    }
+    const id = Math.random().toString(36).substr(2, 9);
+    setSiswa([...siswa, { ...newSiswa, id, noUrut: parseInt(newSiswa.noUrut) || siswa.length + 1, nomorUjian: newSiswa.noUjian }]);
+    setNewSiswa({ noUrut: '', nama: '', kelas: '', noUjian: '', ruang: '' });
+    setIsSiswaDialogOpen(false);
+    toast.success('Siswa berhasil ditambahkan');
+  };
+
+  const handleTambahUser = () => {
+    if (!newUser.username || !newUser.namaGuru) {
+      toast.error('Username dan Nama Guru wajib diisi');
+      return;
+    }
+    const id = Math.random().toString(36).substr(2, 9);
+    setUsers([...users, { ...newUser, id }]);
+    setNewUser({ namaGuru: '', username: '', pass: '', role: 'guru' });
+    setIsUserDialogOpen(false);
+    toast.success('User berhasil ditambahkan');
+  };
+
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n');
+      const newSiswaList: any[] = [];
+      
+      // Skip header
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const [no, nama, kelas, noUjian, ruang] = line.split(',');
+        if (nama && noUjian) {
+          newSiswaList.push({
+            id: Math.random().toString(36).substr(2, 9),
+            noUrut: parseInt(no) || i,
+            nama: nama.trim(),
+            kelas: kelas?.trim() || '',
+            nomorUjian: noUjian?.trim() || '',
+            ruang: ruang?.trim() || ''
+          });
+        }
+      }
+
+      if (newSiswaList.length > 0) {
+        setSiswa([...siswa, ...newSiswaList]);
+        toast.success(`${newSiswaList.length} data siswa berhasil diimport`);
+      } else {
+        toast.error('Format file tidak sesuai atau data kosong');
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const downloadTemplate = () => {
-    const headers = "No,Nama,Kelas,No Ujian,Ruang\n";
+    const headers = "No,Nama,Kelas,No Ujian,Ruang\n1,Contoh Nama,XII IPA 1,01-001-001,Ruang 01";
     const blob = new Blob([headers], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -91,7 +159,7 @@ export default function Admin({ user }: { user: any }) {
                 <CardTitle>Daftar Siswa</CardTitle>
                 <CardDescription>Total {siswa.length} siswa terdaftar.</CardDescription>
               </div>
-              <Dialog>
+              <Dialog open={isSiswaDialogOpen} onOpenChange={setIsSiswaDialogOpen}>
                 <DialogTrigger
                   render={
                     <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
@@ -108,27 +176,27 @@ export default function Admin({ user }: { user: any }) {
                   <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="no" className="text-right">No Urut</Label>
-                      <Input id="no" type="number" className="col-span-3" />
+                      <Input id="no" type="number" className="col-span-3" value={newSiswa.noUrut} onChange={e => setNewSiswa({...newSiswa, noUrut: e.target.value})} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="nama" className="text-right">Nama</Label>
-                      <Input id="nama" className="col-span-3" />
+                      <Input id="nama" className="col-span-3" value={newSiswa.nama} onChange={e => setNewSiswa({...newSiswa, nama: e.target.value})} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="kelas" className="text-right">Kelas</Label>
-                      <Input id="kelas" className="col-span-3" />
+                      <Input id="kelas" className="col-span-3" value={newSiswa.kelas} onChange={e => setNewSiswa({...newSiswa, kelas: e.target.value})} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="noUjian" className="text-right">No Ujian</Label>
-                      <Input id="noUjian" className="col-span-3" />
+                      <Input id="noUjian" className="col-span-3" value={newSiswa.noUjian} onChange={e => setNewSiswa({...newSiswa, noUjian: e.target.value})} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="ruang" className="text-right">Ruang</Label>
-                      <Input id="ruang" className="col-span-3" />
+                      <Input id="ruang" className="col-span-3" value={newSiswa.ruang} onChange={e => setNewSiswa({...newSiswa, ruang: e.target.value})} />
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button type="submit" onClick={() => toast.success('Fitur simulasi: Siswa ditambahkan')}>Simpan</Button>
+                    <Button type="submit" onClick={handleTambahSiswa}>Simpan</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -157,7 +225,7 @@ export default function Admin({ user }: { user: any }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {siswa.map((s) => (
+                  {siswa.filter(s => s.nama.toLowerCase().includes(searchTerm.toLowerCase()) || s.nomorUjian.includes(searchTerm)).map((s) => (
                     <TableRow key={s.id}>
                       <TableCell>{s.noUrut}</TableCell>
                       <TableCell className="font-medium">{s.nama}</TableCell>
@@ -194,7 +262,7 @@ export default function Admin({ user }: { user: any }) {
                 <CardTitle>Manajemen User (Guru)</CardTitle>
                 <CardDescription>Kelola akun guru yang dapat melakukan presensi.</CardDescription>
               </div>
-              <Dialog>
+              <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
                 <DialogTrigger
                   render={
                     <Button size="sm" className="bg-slate-800 hover:bg-slate-900 text-white">
@@ -211,19 +279,19 @@ export default function Admin({ user }: { user: any }) {
                   <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="namaGuru" className="text-right">Nama Guru</Label>
-                      <Input id="namaGuru" className="col-span-3" />
+                      <Input id="namaGuru" className="col-span-3" value={newUser.namaGuru} onChange={e => setNewUser({...newUser, namaGuru: e.target.value})} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="username" className="text-right">Username</Label>
-                      <Input id="username" className="col-span-3" />
+                      <Input id="username" className="col-span-3" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="pass" className="text-right">Password</Label>
-                      <Input id="pass" type="password" className="col-span-3" />
+                      <Input id="pass" type="password" className="col-span-3" value={newUser.pass} onChange={e => setNewUser({...newUser, pass: e.target.value})} />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="role" className="text-right">Role</Label>
-                      <Select defaultValue="guru">
+                      <Select value={newUser.role} onValueChange={val => setNewUser({...newUser, role: val})}>
                         <SelectTrigger className="col-span-3">
                           <SelectValue placeholder="Pilih Role" />
                         </SelectTrigger>
@@ -235,7 +303,7 @@ export default function Admin({ user }: { user: any }) {
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button type="submit" onClick={() => toast.success('Fitur simulasi: User ditambahkan')}>Simpan User</Button>
+                    <Button type="submit" onClick={handleTambahUser}>Simpan User</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -257,7 +325,7 @@ export default function Admin({ user }: { user: any }) {
                       <TableCell>{u.namaGuru}</TableCell>
                       <TableCell className="capitalize">{u.role}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" className="text-red-600">
+                        <Button variant="ghost" size="icon" className="text-red-600" onClick={() => setUsers(users.filter(usr => usr.id !== u.id))}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </TableCell>
@@ -285,9 +353,18 @@ export default function Admin({ user }: { user: any }) {
               <Upload className="w-12 h-12 text-slate-300 mb-4" />
               <p className="text-slate-600 font-medium">Klik untuk unggah atau seret file ke sini</p>
               <p className="text-slate-400 text-sm mt-1">Format: .csv (Gunakan template yang disediakan)</p>
-              <Button variant="outline" className="mt-6">
-                Pilih File
-              </Button>
+              <div className="mt-6">
+                <Input 
+                  type="file" 
+                  accept=".csv" 
+                  className="hidden" 
+                  id="csv-upload" 
+                  onChange={handleImportCSV}
+                />
+                <Button variant="outline" render={<label htmlFor="csv-upload" className="cursor-pointer" />}>
+                  Pilih File CSV
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
